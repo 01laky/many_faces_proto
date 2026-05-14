@@ -6,20 +6,21 @@ Canonical **Protocol Buffer** and **gRPC** contracts shared across Many Faces se
 
 ```text
 proto/
-  buf.yaml              # Buf lint + breaking rules (module root)
+  buf.yaml
+  health.proto           # AI HealthService (legacy package name; Buf lint ignored)
   manyfaces/
-    push/v1/            # FCM push worker API
+    push/v1/
     mailer/v1/          # Transactional mail worker API
     search/v1/          # Elasticsearch search-worker API
 ```
 
-Wire contracts live only under `proto/manyfaces/**`. Consumers attach this repository as a **git submodule**.
+Wire contracts live under **`proto/manyfaces/**`** and **`proto/health.proto`** (AI). Consumers attach this repository as a **git submodule**.
 
 ## Submodule strategy (Strategy A)
 
 The **many_faces_main** monorepo pins this repo at **`many_faces_proto/`** (sibling of `many_faces_backend/`, `many_faces_push/`, …). Use **`git clone --recursive`** or **`git submodule update --init --recursive`** so the contracts are present before building workers or the backend.
 
-- **.NET:** `BeDemo.Api.csproj` references `..\..\many_faces_proto\proto\manyfaces\...\*.proto` from `many_faces_backend/BeDemo.Api/`.
+- **.NET:** `BeDemo.Api.csproj` references `..\..\many_faces_proto\proto\...` from `many_faces_backend/BeDemo.Api/` (worker APIs under `manyfaces/`, AI under `health.proto`).
 - **Go / Java:** from a consumer submodule root, use **`../many_faces_proto/proto`** as the `protoc` / Gradle include root when developing inside the monorepo.
 - **Standalone clone** of a single worker repo: clone **`many_faces_proto`** next to it (or shallow-clone in CI) so relative paths or `MANY_FACES_PROTO_DIR` match that repo’s README.
 

@@ -2,6 +2,9 @@ version: v1
 lint:
   use:
     - STANDARD
+  # Legacy AI contract predates manyfaces.*.v1 naming; keep wire-stable for C#/Python.
+  ignore:
+    - health.proto
 breaking:
   use:
     - FILE

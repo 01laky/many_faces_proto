@@ -6,10 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **`health.proto`** — AI **HealthService** wire contract (shared with **`many_faces_backend`** C# client and **`many_faces_ai`** Python server).
+
 ### Changed
 
-- Document **Strategy A** submodule layout in `README.md`.
-- Add `.github/CODEOWNERS` for `proto/` reviews.
+- **`buf.yaml`** — lint ignore for `health.proto` (legacy `package health` naming).
 
 ## [0.1.0] - 2026-05-14
 
