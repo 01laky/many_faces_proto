@@ -1,0 +1,25 @@
+---
+description: This repo is the only place to edit shared .proto files; consumers only bump submodule SHAs
+alwaysApply: true
+---
+
+# `many_faces_proto` — canonical contract repository
+
+All shared gRPC/protobuf definitions for Many Faces live **here** under `proto/`.
+
+## You are in the source repo
+
+- **Do** change `proto/**/*.proto`, `buf.yaml`, and contract docs in **this** repository.
+- **Do** push to `origin` on `many_faces_proto` before updating consumer repos.
+- **Do not** expect duplicate edits in `many_faces_push`, `many_faces_mailer`, etc. — those repos only **pin** this commit via a nested git submodule at `many_faces_proto/`.
+
+## After pushing a contract change
+
+Consumers (`many_faces_backend`, `many_faces_push`, `many_faces_mailer`, `many_faces_elastic`, `many_faces_ai`) must each:
+
+1. Check out **the same** commit SHA in their nested `many_faces_proto/` submodule.
+2. Regenerate language stubs from `proto/`.
+3. Commit the submodule pointer bump in the consumer repo and push.
+4. Monorepo `many_faces_main` then bumps the consumer submodule pointer(s).
+
+Monorepo agents: see `many_faces_main/.cursor/rules/proto-single-source-submodule.mdc` and `scripts/bump-nested-many-faces-proto.sh`.

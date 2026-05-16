@@ -16,15 +16,16 @@ proto/
 
 Wire contracts live under **`proto/manyfaces/**`** and **`proto/health.proto`** (AI). Consumers attach this repository as a **git submodule**.
 
-## Submodule strategy (Strategy A)
+## Submodule strategy (Strategy B — current in Many Faces)
 
-The **many_faces_main** monorepo pins this repo at **`many_faces_proto/`** (sibling of `many_faces_backend/`, `many_faces_push/`, …). Use **`git clone --recursive`** or **`git submodule update --init --recursive`** so the contracts are present before building workers or the backend.
+Each gRPC consumer (`many_faces_backend`, `many_faces_push`, `many_faces_mailer`, `many_faces_elastic`, `many_faces_ai`) embeds **this same repository** as a nested git submodule at **`many_faces_proto/`**.
 
-- **.NET:** `BeDemo.Api.csproj` references `..\..\many_faces_proto\proto\...` from `many_faces_backend/BeDemo.Api/` (worker APIs under `manyfaces/`, AI under `health.proto`).
-- **Go / Java:** from a consumer submodule root, use **`../many_faces_proto/proto`** as the `protoc` / Gradle include root when developing inside the monorepo.
-- **Standalone clone** of a single worker repo: clone **`many_faces_proto`** next to it (or shallow-clone in CI) so relative paths or `MANY_FACES_PROTO_DIR` match that repo’s README.
+- **Edit contracts only in this repo** (or one nested checkout of it), then **push here first**.
+- **Bump the same commit SHA** in every consumer’s nested `many_faces_proto/` before merging a wire change.
+- **.NET:** from `many_faces_backend/BeDemo.Api/`, protos are `..\many_faces_proto\proto\...`.
+- **Go / Java / Python:** use **`many_faces_proto/proto`** as the include root from the consumer repo.
 
-Strategy **B** (nested `many_faces_proto` submodule inside each consumer) is optional for repos that must build outside the monorepo; keep submodule SHAs in lockstep if you adopt it.
+Monorepo helper: `many_faces_main/scripts/bump-nested-many-faces-proto.sh`. Agent rule: `many_faces_main/.cursor/rules/proto-single-source-submodule.mdc`.
 
 Further detail: monorepo [`docs/prompts/proto-shared-repository-and-submodules-agent-prompt.md`](https://github.com/01laky/many_faces_main/blob/main/docs/prompts/proto-shared-repository-and-submodules-agent-prompt.md).
 
