@@ -29,6 +29,8 @@ message GenerateRequest {
   int32 max_new_tokens = 2;
   // When set, the Python server prepends this JSON as read-only context before the user prompt (admin AI chat).
   optional string stats_context_json = 3;
+  // Admin operator UI locale for the reply: en | sk | cz
+  optional string response_locale = 4;
 }
 
 message GenerateResponse {
