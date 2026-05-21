@@ -16,6 +16,16 @@ service HealthService {
   rpc FetchPublicStats (FetchPublicStatsRequest) returns (FetchPublicStatsResponse);
   // Optional path: Python fetches live public snapshot then answers with the local model (operator chat).
   rpc OperatorStatsChat (OperatorStatsChatRequest) returns (GenerateResponse);
+  // Host hardware/OS snapshot collected locally on the AI worker machine.
+  rpc GetHostProfile (HostProfileRequest) returns (HostProfileResponse);
+}
+
+message HostProfileRequest {}
+
+message HostProfileResponse {
+  // JSON object matching host profile schema (schemaVersion field inside JSON).
+  string json_body = 1;
+  string error = 2;
 }
 
 message HealthCheckRequest {}
