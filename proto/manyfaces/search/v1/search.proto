@@ -9,22 +9,115 @@ option csharp_namespace = "ManyFaces.Search.V1";
 
 // PingRequest carries optional metadata for logs and future distributed tracing.
 message PingRequest {
-  // Optional correlation id (e.g. ASP.NET trace identifier) echoed in worker logs; never treated as secret.
   string correlation_id = 1;
 }
 
 // PingResponse reports whether the worker could reach Elasticsearch and read cluster metadata.
 message PingResponse {
-  // True when Elasticsearch HTTP responded successfully and cluster_name could be read (or empty cluster allowed).
   bool elasticsearch_reachable = 1;
-  // Elasticsearch "cluster_name" from the root HTTP API when reachable.
   string cluster_name = 2;
-  // Human-readable error for operators when elasticsearch_reachable is false.
   string error_message = 3;
+}
+
+// SearchDocument is the indexed projection for admin global search.
+message SearchDocument {
+  string document_type = 1;
+  string entity_id = 2;
+  string face_id = 3;
+  string title = 4;
+  string subtitle = 5;
+  string search_text = 6;
+  string approval_status = 7;
+  int64 updated_at_unix_ms = 8;
+}
+
+message IndexDocumentRequest {
+  SearchDocument document = 1;
+  string correlation_id = 2;
+}
+
+message IndexDocumentResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message DeleteDocumentRequest {
+  string document_type = 1;
+  string entity_id = 2;
+  string correlation_id = 3;
+}
+
+message DeleteDocumentResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+message BulkIndexDocumentsRequest {
+  repeated SearchDocument documents = 1;
+  string correlation_id = 2;
+}
+
+message BulkIndexItemError {
+  string entity_id = 1;
+  string error_message = 2;
+}
+
+message BulkIndexDocumentsResponse {
+  int32 indexed_count = 1;
+  int32 failed_count = 2;
+  repeated BulkIndexItemError errors = 3;
+}
+
+message ListDocumentIdsRequest {
+  string document_type = 1;
+  string cursor = 2;
+  int32 page_size = 3;
+  string correlation_id = 4;
+}
+
+message ListDocumentIdsResponse {
+  repeated string entity_ids = 1;
+  string next_cursor = 2;
+}
+
+message RouteParams {
+  string type = 1;
+  map<string, string> ids = 2;
+}
+
+message AutocompleteHit {
+  string document_type = 1;
+  string entity_id = 2;
+  string face_id = 3;
+  string title = 4;
+  string subtitle = 5;
+  repeated string highlights = 6;
+  double score = 7;
+  RouteParams route_params = 8;
+}
+
+message AutocompleteRequest {
+  string query = 1;
+  int32 page_size = 2;
+  int32 offset = 3;
+  repeated string document_types = 4;
+  string correlation_id = 5;
+}
+
+message AutocompleteResponse {
+  repeated AutocompleteHit hits = 1;
+  int64 took_ms = 2;
+  bool degraded = 3;
+  bool has_more = 4;
+  int32 next_offset = 5;
 }
 
 // SearchService is implemented only by the Go worker. Callers must authenticate per many_faces_elastic README.
 service SearchService {
-  // Ping verifies gRPC transport plus Elasticsearch connectivity from inside the worker network namespace.
   rpc Ping(PingRequest) returns (PingResponse);
+  rpc IndexDocument(IndexDocumentRequest) returns (IndexDocumentResponse);
+  rpc DeleteDocument(DeleteDocumentRequest) returns (DeleteDocumentResponse);
+  rpc BulkIndexDocuments(BulkIndexDocumentsRequest) returns (BulkIndexDocumentsResponse);
+  rpc ListDocumentIds(ListDocumentIdsRequest) returns (ListDocumentIdsResponse);
+  rpc Autocomplete(AutocompleteRequest) returns (AutocompleteResponse);
 }
