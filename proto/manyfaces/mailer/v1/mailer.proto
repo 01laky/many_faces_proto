@@ -9,6 +9,18 @@ option java_multiple_files = true;
 service MailerService {
   // Renders a registered template (HTML + plain text) and delivers via SMTP.
   rpc SendTemplatedEmail(SendTemplatedEmailRequest) returns (SendTemplatedEmailResponse);
+  // Opens SMTP transport without sending a message (admin Settings probe).
+  rpc TestSmtpConnection(TestSmtpConnectionRequest) returns (TestSmtpConnectionResponse);
+}
+
+message SmtpTransportConfig {
+  string host = 1;
+  int32 port = 2;
+  bool start_tls = 3;
+  string user = 4;
+  string password = 5;
+  string from_email = 6;
+  string from_display_name = 7;
 }
 
 message SendTemplatedEmailRequest {
@@ -20,9 +32,19 @@ message SendTemplatedEmailRequest {
   map<string, string> params = 6;
   optional string reply_to = 7;
   optional string idempotency_key = 8;
+  optional SmtpTransportConfig smtp = 9;
 }
 
 message SendTemplatedEmailResponse {
   string correlation_id = 1;
   optional string smtp_message_id = 2;
+}
+
+message TestSmtpConnectionRequest {
+  optional SmtpTransportConfig smtp = 1;
+}
+
+message TestSmtpConnectionResponse {
+  bool reachable = 1;
+  string detail = 2;
 }
