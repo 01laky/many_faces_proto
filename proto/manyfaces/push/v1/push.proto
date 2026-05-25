@@ -27,6 +27,23 @@ message SendPushRequest {
   string collapse_key = 8;
   // Time-to-live in seconds (optional; 0 means use FCM default).
   uint32 ttl_seconds = 9;
+  // Optional per-request Firebase credentials from admin DB (many_faces_backend). When set, worker uses this instead of env bootstrap.
+  optional FcmCredentialsConfig fcm = 10;
+}
+
+// FcmCredentialsConfig carries Firebase Admin service account JSON for a single gRPC call (never log).
+message FcmCredentialsConfig {
+  string service_account_json = 1;
+}
+
+message TestFcmCredentialsRequest {
+  optional FcmCredentialsConfig fcm = 1;
+}
+
+message TestFcmCredentialsResponse {
+  bool valid = 1;
+  string project_id = 2;
+  string detail = 3;
 }
 
 // PerTokenResult summarizes delivery outcome for one registration token (never echoes full token).
@@ -51,4 +68,6 @@ message SendPushResponse {
 service PushService {
   // SendPush delivers one logical notification to many devices using localization keys in the OS payload.
   rpc SendPush(SendPushRequest) returns (SendPushResponse);
+  // TestFcmCredentials validates Firebase service account JSON without sending a notification.
+  rpc TestFcmCredentials(TestFcmCredentialsRequest) returns (TestFcmCredentialsResponse);
 }
