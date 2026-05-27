@@ -11,24 +11,34 @@ option csharp_namespace = "Health";
 service HealthService {
   rpc HealthCheck (HealthCheckRequest) returns (HealthCheckResponse);
   rpc Generate (GenerateRequest) returns (GenerateResponse);
+  // Server-streaming chat completion (AI-UP10).
+  rpc GenerateStream (GenerateRequest) returns (stream GenerateStreamChunk);
   rpc ReviewContent (ContentReviewRequest) returns (ContentReviewResponse);
-  // Fetches JSON from an HTTP GET URL (intended for BeDemo public stats). Implemented in the Python worker.
   rpc FetchPublicStats (FetchPublicStatsRequest) returns (FetchPublicStatsResponse);
-  // Optional path: Python fetches live public snapshot then answers with the local model (operator chat).
+  // Deprecated: live stats use backend map-reduce + Generate (AI-UP9).
   rpc OperatorStatsChat (OperatorStatsChatRequest) returns (GenerateResponse);
-  // Host hardware/OS snapshot collected locally on the AI worker machine.
   rpc GetHostProfile (HostProfileRequest) returns (HostProfileResponse);
+  // AI-UP3 typed face context for operator LLM prompts.
+  rpc BuildFaceContextSnapshot (FaceContextSnapshotRequest) returns (FaceContextSnapshotResponse);
+  // AI-UP4 messenger / chat-room pre-delivery risk scoring.
+  rpc ChatRiskScore (ChatRiskScoreRequest) returns (ChatRiskScoreResponse);
+  // AI-UP11 structured admin reports.
+  rpc GenerateReport (GenerateReportRequest) returns (GenerateReportResponse);
+  // AI-UP15 text embeddings via Ollama.
+  rpc EmbedText (EmbedTextRequest) returns (EmbedTextResponse);
+  // AI-UP18 moderation decision explanation (deterministic, no second LLM call).
+  rpc ExplainDecision (ExplainDecisionRequest) returns (ExplainDecisionResponse);
 }
 
 message HostProfileRequest {}
 
 message HostProfileResponse {
-  // JSON object matching host profile schema (schemaVersion field inside JSON).
   string json_body = 1;
   string error = 2;
 }
 
 message HealthCheckRequest {}
+
 message HealthCheckResponse {
   string status = 1;
   string message = 2;
@@ -37,19 +47,28 @@ message HealthCheckResponse {
 message GenerateRequest {
   string prompt = 1;
   int32 max_new_tokens = 2;
-  // When set, the Python server prepends this JSON as read-only context before the user prompt (admin AI chat).
   optional string stats_context_json = 3;
-  // Admin operator UI locale for the reply: en | sk | cz
   optional string response_locale = 4;
+  // AI-UP5: compact search hits JSON from backend (trusted operator data).
+  optional string search_hits_json = 5;
 }
 
 message GenerateResponse {
   string text = 1;
   string error = 2;
+  // Stable machine code for clients (AI-UP13/19): ollama_unavailable, ollama_circuit_open, model_loading, ...
+  optional string error_code = 3;
+}
+
+message GenerateStreamChunk {
+  string text_delta = 1;
+  bool is_final = 2;
+  optional string finish_reason = 3;
+  optional string error = 4;
+  optional string error_code = 5;
 }
 
 message FetchPublicStatsRequest {
-  // Full URL to GET (e.g. http://be-demo-api:7199/api/Stats/public).
   string absolute_url = 1;
 }
 
@@ -87,4 +106,81 @@ message ContentReviewResponse {
   string model_version = 7;
   string trace_id = 8;
   string error = 9;
+  // AI-UP16: backend may auto-approve when policy allows.
+  optional bool auto_approve_eligible = 10;
+  optional string policy_hint = 11;
+  optional string decision_path = 12;
+}
+
+message FaceContextSnapshotRequest {
+  int32 face_id = 1;
+  string face_index = 2;
+  string snapshot_json = 3;
+}
+
+message FaceContextSnapshotResponse {
+  string formatted_context = 1;
+  string schema_version = 2;
+  repeated string warnings = 3;
+  string error = 4;
+}
+
+message ChatRiskScoreRequest {
+  string channel_type = 1;
+  string message_text = 2;
+  string sender_user_id = 3;
+  optional string face_index = 4;
+}
+
+message ChatRiskScoreResponse {
+  float risk_score = 1;
+  string action = 2;
+  repeated string flags = 3;
+  string safe_user_hint = 4;
+  string model_version = 5;
+  string error = 6;
+}
+
+message GenerateReportRequest {
+  string report_type = 1;
+  string report_locale = 2;
+  string input_json = 3;
+  int32 max_new_tokens = 4;
+}
+
+message GenerateReportResponse {
+  string report_markdown = 1;
+  string report_json = 2;
+  string schema_version = 3;
+  string error = 4;
+}
+
+message EmbedTextRequest {
+  repeated string texts = 1;
+  optional string model = 2;
+}
+
+message EmbeddingVector {
+  repeated float values = 1;
+  int32 dimensions = 2;
+}
+
+message EmbedTextResponse {
+  repeated EmbeddingVector vectors = 1;
+  string model_version = 2;
+  string error = 3;
+}
+
+message ExplainDecisionRequest {
+  string trace_id = 1;
+  string decision_snapshot_json = 2;
+}
+
+message ExplainDecisionResponse {
+  string path = 1;
+  repeated string flags = 2;
+  string reason = 3;
+  string sanitized_excerpt = 4;
+  string model_version = 5;
+  string error = 6;
 }
