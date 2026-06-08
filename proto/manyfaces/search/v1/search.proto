@@ -114,6 +114,79 @@ message AutocompleteResponse {
   int32 next_offset = 5;
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// Operator-AI RAG knowledge surface (operator-ai-rag-retrieval-refactor v1).
+// Internal, SUPER_ADMIN-only retrieval over a SEPARATE `operator-ai-knowledge`
+// index — NOT user-facing global search. The backend embeds (via the AI worker
+// EmbedText RPC) and supplies vectors; the Go worker owns the ES kNN + BM25
+// hybrid query (RRF fusion) and the versioned-index + alias lifecycle.
+// ───────────────────────────────────────────────────────────────────────────
+
+// KnowledgeDocument — one internal operator-AI retrieval chunk.
+// v1 source_type is always "stat_bundle" (the 61 entity bundles). Phase 2 adds "content"/"doc".
+message KnowledgeDocument {
+  string knowledge_id        = 1;  // stable upsert key, e.g. "bundle:entity.albums"
+  string source_type         = 2;  // "stat_bundle" (v1) | "content" | "doc" (phase 2)
+  int32  bundle_index        = 3;  // stat_bundle: catalog index 0..60; else -1
+  string title               = 4;  // short label (e.g. "Albums")
+  string description         = 5;  // embedded descriptor text (reused PlannerDescription)
+  repeated string synonyms          = 6;  // entity aliases / alt phrasings
+  repeated string sample_questions  = 7;  // example operator questions this chunk answers
+  string content_text        = 8;  // BM25 text = description + synonyms + sample_questions joined
+  repeated float vector      = 9;  // embedding of content_text (descriptor in v1)
+  int32  vector_dim          = 10; // asserted against index mapping; reject on drift
+  string embed_model_version = 11; // e.g. "nomic-embed-text"; drives re-embed on bump
+  int64  updated_at_unix_ms  = 12;
+}
+
+message IndexKnowledgeRequest  { repeated KnowledgeDocument documents = 1; string correlation_id = 2; }
+message IndexKnowledgeResponse {
+  int32 indexed_count = 1;
+  int32 failed_count  = 2;
+  repeated BulkIndexItemError errors = 3;   // reuse existing BulkIndexItemError
+}
+
+message DeleteKnowledgeRequest  { string knowledge_id = 1; string correlation_id = 2; }  // phase 2 removals
+message DeleteKnowledgeResponse { bool success = 1; string error_message = 2; }
+
+message SemanticSearchRequest {
+  repeated float query_vector  = 1;  // embedded by the AI worker, supplied by backend
+  string query_text            = 2;  // BM25 side of the hybrid
+  int32  top_k                 = 3;  // = OperatorAi:MaxSelectedBundleIndices
+  repeated string source_types = 4;  // filter, v1 = ["stat_bundle"]
+  int32  rrf_k                 = 5;  // optional RRF constant override (default 60 if 0)
+  string correlation_id        = 6;
+}
+message SemanticSearchHit {
+  string knowledge_id = 1;
+  string source_type  = 2;
+  int32  bundle_index = 3;
+  string title        = 4;
+  double score        = 5;  // fused RRF score
+  double vector_rank  = 6;  // for logs/debug
+  double text_rank    = 7;
+}
+message SemanticSearchResponse {
+  repeated SemanticSearchHit hits = 1;
+  int64 took_ms = 2;
+  bool  degraded = 3;  // true if only one retriever (kNN or BM25) was available
+}
+
+// KnowledgeIndexStatus — readiness + health for the cold-start gate and admin panel.
+message KnowledgeIndexStatusRequest  { string correlation_id = 1; }
+message KnowledgeIndexStatusResponse {
+  string alias               = 1;
+  string active_index        = 2;  // concrete operator-ai-knowledge-v{n}
+  int32  doc_count           = 3;
+  string embed_model_version = 4;
+  int32  vector_dim          = 5;
+  bool   ready               = 6;  // alias exists AND doc_count == expected AND model matches
+  bool   degraded            = 7;
+  int64  last_indexed_unix_ms = 8;
+  int32  expected_doc_count  = 9;  // 61 in v1
+  string error_message       = 10;
+}
+
 // SearchService is implemented only by the Go worker. Callers must authenticate per many_faces_elastic README.
 service SearchService {
   rpc Ping(PingRequest) returns (PingResponse);
@@ -122,4 +195,10 @@ service SearchService {
   rpc BulkIndexDocuments(BulkIndexDocumentsRequest) returns (BulkIndexDocumentsResponse);
   rpc ListDocumentIds(ListDocumentIdsRequest) returns (ListDocumentIdsResponse);
   rpc Autocomplete(AutocompleteRequest) returns (AutocompleteResponse);
+
+  // Operator-AI RAG knowledge surface (v1).
+  rpc IndexKnowledge(IndexKnowledgeRequest)                 returns (IndexKnowledgeResponse);       // bulk upsert by knowledge_id
+  rpc DeleteKnowledge(DeleteKnowledgeRequest)               returns (DeleteKnowledgeResponse);      // phase 2
+  rpc SemanticSearch(SemanticSearchRequest)                 returns (SemanticSearchResponse);       // hybrid kNN + BM25, RRF-fused
+  rpc KnowledgeIndexStatus(KnowledgeIndexStatusRequest)     returns (KnowledgeIndexStatusResponse); // readiness + health
 }
