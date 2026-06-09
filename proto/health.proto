@@ -51,6 +51,14 @@ message GenerateRequest {
   optional string response_locale = 4;
   // AI-UP5: compact search hits JSON from backend (trusted operator data).
   optional string search_hits_json = 5;
+  // 7B-perf O11: per-call sampling override for the terse per-bundle MAP step
+  // (low temperature + stop sequences) so the operator-visible synthesis can keep
+  // the worker's default fluent sampling. Unset ⇒ worker defaults.
+  optional double temperature = 6;
+  repeated string stop = 7;
+  // 7B-perf O19: per-call model override so the backend can route a small routing/
+  // gating decision to the CPU-resident helper model. Unset ⇒ worker default model.
+  optional string model = 8;
 }
 
 message GenerateResponse {
